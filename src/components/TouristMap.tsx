@@ -25,220 +25,164 @@ export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) 
   const [selectedTourists, setSelectedTourists] = useState<Tourist[]>([]);
   const [showTouristList, setShowTouristList] = useState(false);
 
-  // Simple fallback map using a canvas-like approach
-  const renderFallbackMap = () => {
+  // Interactive Pune map with tourist markers
+  const renderPuneMap = () => {
     return (
-      <div className="w-full h-96 bg-gradient-to-br from-blue-100 to-green-100 rounded-lg relative overflow-hidden">
-        {/* India outline simulation */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-64 h-80 bg-primary/10 rounded-lg border-2 border-primary/20">
-            <div className="absolute top-4 left-4 text-xs text-primary font-medium">INDIA</div>
+      <div className="w-full h-96 bg-white rounded-xl relative overflow-hidden border border-slate-200 shadow-lg">
+        {/* Modern header */}
+        <div className="absolute top-3 left-3 z-20 bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-slate-700">Pune Tourist Tracking</span>
+          </div>
+        </div>
+        
+        {/* Pune map image with overlay markers */}
+        <div className="relative w-full h-full">
+          {/* Pune map background */}
+          <div 
+            className="w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url('data:image/svg+xml;base64,${btoa(`
+                <svg width="100%" height="100%" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Pune city background -->
+                  <rect width="100%" height="100%" fill="#f8fafc"/>
+                  
+                  <!-- Main roads -->
+                  <path d="M 100 200 L 700 200" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                  <path d="M 100 300 L 700 300" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                  <path d="M 200 100 L 200 500" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                  <path d="M 400 100 L 400 500" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                  <path d="M 600 100 L 600 500" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                  
+                  <!-- Secondary roads -->
+                  <path d="M 150 150 L 650 150" stroke="#64748b" stroke-width="2" fill="none"/>
+                  <path d="M 150 250 L 650 250" stroke="#64748b" stroke-width="2" fill="none"/>
+                  <path d="M 150 350 L 650 350" stroke="#64748b" stroke-width="2" fill="none"/>
+                  <path d="M 150 450 L 650 450" stroke="#64748b" stroke-width="2" fill="none"/>
+                  
+                  <!-- Parks and green areas -->
+                  <rect x="250" y="120" width="100" height="60" fill="#10b981" opacity="0.3" rx="10"/>
+                  <rect x="450" y="220" width="80" height="50" fill="#10b981" opacity="0.3" rx="10"/>
+                  <rect x="350" y="320" width="120" height="80" fill="#10b981" opacity="0.3" rx="10"/>
+                  
+                  <!-- Water body -->
+                  <path d="M 50 100 Q 200 150 350 120 Q 500 100 650 130 Q 750 150 750 200" stroke="#0ea5e9" stroke-width="8" fill="#0ea5e9" opacity="0.4"/>
+                  
+                  <!-- City center -->
+                  <circle cx="400" cy="300" r="8" fill="#ef4444"/>
+                  
+                  <!-- Landmarks */}
+                  <text x="200" y="180" font-family="Arial" font-size="12" fill="#374151">Shaniwar Wada</text>
+                  <text x="500" y="180" font-family="Arial" font-size="12" fill="#374151">Aga Khan Palace</text>
+                  <text x="300" y="280" font-family="Arial" font-size="12" fill="#374151">Koregaon Park</text>
+                  <text x="500" y="380" font-family="Arial" font-size="12" fill="#374151">Magarpatta City</text>
+                  
+                  <!-- City name -->
+                  <text x="400" y="50" font-family="Arial" font-size="24" font-weight="bold" fill="#1f2937" text-anchor="middle">Pune (पुणे)</text>
+                </svg>
+              `)}')`
+            }}
+          />
+          
+          {/* Tourist markers positioned on Pune map */}
+          {mockTourists.map((tourist, index) => {
+            // Pune-specific positions based on actual locations
+            const punePositions = [
+              { left: '25%', top: '35%' }, // Koregaon Park area
+              { left: '60%', top: '30%' }, // Aga Khan Palace area
+              { left: '20%', top: '50%' }, // Shaniwar Wada area
+              { left: '70%', top: '60%' }, // Magarpatta City area
+              { left: '45%', top: '45%' }  // Central Pune
+            ];
+            const pos = punePositions[index] || { left: '50%', top: '50%' };
             
-            {/* Tourist markers */}
-            {mockTourists.map((tourist, index) => (
+            return (
               <div
                 key={tourist.id}
-                className={`absolute w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-150 ${
-                  tourist.status === 'active' ? 'bg-success' : 'bg-destructive'
+                className={`absolute w-6 h-6 rounded-full cursor-pointer transition-all duration-300 hover:scale-150 hover:z-20 shadow-lg border-3 border-white ${
+                  tourist.status === 'active' 
+                    ? 'bg-emerald-500 hover:bg-emerald-600' 
+                    : 'bg-red-500 hover:bg-red-600'
                 }`}
                 style={{
-                  left: `${20 + (index * 15) % 60}%`,
-                  top: `${20 + (index * 20) % 50}%`,
+                  left: pos.left,
+                  top: pos.top,
                 }}
                 title={`${tourist.name} - ${tourist.location.address}`}
                 onClick={() => {
                   setSelectedTourists([tourist]);
                   setShowTouristList(true);
                 }}
-              />
-            ))}
+              >
+                {/* Pulse animation for active tourists */}
+                {tourist.status === 'active' && (
+                  <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75"></div>
+                )}
+              </div>
+            );
+          })}
+          
+          {/* Incident markers positioned on Pune map */}
+          {mockIncidents.map((incident, index) => {
+            const puneIncidentPositions = [
+              { left: '30%', top: '40%' },
+              { left: '55%', top: '35%' },
+              { left: '65%', top: '55%' }
+            ];
+            const pos = puneIncidentPositions[index] || { left: '50%', top: '50%' };
             
-            {/* Incident markers */}
-            {mockIncidents.map((incident, index) => (
+            return (
               <div
                 key={incident.id}
-                className="absolute w-4 h-4 cursor-pointer"
+                className="absolute w-7 h-7 cursor-pointer hover:scale-125 transition-all duration-300 hover:z-20"
                 style={{
-                  left: `${30 + (index * 20) % 40}%`,
-                  top: `${30 + (index * 15) % 40}%`,
+                  left: pos.left,
+                  top: pos.top,
                 }}
                 title={`Incident: ${incident.description}`}
+                onClick={() => {
+                  setSelectedTourists(mockTourists.filter(t => t.id === incident.touristId));
+                  setShowTouristList(true);
+                }}
               >
-                <AlertTriangle 
-                  className={`w-4 h-4 ${
-                    incident.severity === 'high' ? 'text-destructive' :
-                    incident.severity === 'medium' ? 'text-warning' : 'text-success'
-                  }`}
-                />
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-3 border-white ${
+                  incident.severity === 'high' ? 'bg-red-500' :
+                  incident.severity === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                }`}>
+                  <AlertTriangle className="w-4 h-4 text-white" />
+                </div>
               </div>
-            ))}
-            
-            {/* Heatmap simulation */}
-            <div className="absolute inset-4 opacity-30">
-              <div className="w-8 h-8 bg-primary rounded-full absolute top-1/4 left-1/4 blur-sm"></div>
-              <div className="w-6 h-6 bg-accent rounded-full absolute top-1/2 left-1/2 blur-sm"></div>
-              <div className="w-10 h-10 bg-primary rounded-full absolute bottom-1/4 right-1/4 blur-sm"></div>
-            </div>
+            );
+          })}
+          
+          {/* Activity zones for Pune areas */}
+          <div className="absolute inset-0 opacity-20">
+            {/* Koregaon Park area */}
+            <div className="absolute top-1/3 left-1/4 w-24 h-16 bg-blue-400 rounded-xl border-2 border-blue-500 animate-pulse shadow-lg"></div>
+            {/* Aga Khan Palace area */}
+            <div className="absolute top-1/4 left-1/2 w-20 h-12 bg-emerald-400 rounded-xl border-2 border-emerald-500 animate-pulse delay-500 shadow-lg"></div>
+            {/* Magarpatta City area */}
+            <div className="absolute bottom-1/3 left-2/3 w-22 h-14 bg-amber-400 rounded-xl border-2 border-amber-500 animate-pulse delay-1000 shadow-lg"></div>
+          </div>
+        </div>
+        
+        {/* Status indicator */}
+        <div className="absolute bottom-3 right-3 z-20 bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span>{mockTourists.filter(t => t.status === 'active').length} Active</span>
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span>{mockTourists.filter(t => t.status === 'inactive').length} Inactive</span>
           </div>
         </div>
       </div>
     );
   };
 
-  useEffect(() => {
-    const loadGoogleMaps = () => {
-      // Check if Google Maps is already loaded
-      if (window.google && window.google.maps) {
-        setIsLoaded(true);
-        return;
-      }
+  // No Google Maps loading needed - using static Pune map
 
-      // Create script element
-      const script = document.createElement('script');
-      const apiKey = 'AIzaSyAECt2XvC04i7IDJMybN7OtKllUjhxHYa4';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=visualization&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-
-      // Set up callback
-      window.initMap = () => {
-        setIsLoaded(true);
-        setMapError(null);
-      };
-
-      // Handle script load error
-      script.onerror = () => {
-        setMapError('Failed to load Google Maps. Please check your API key and network connection.');
-        setIsLoaded(false);
-      };
-
-      // Handle script load timeout
-      const timeout = setTimeout(() => {
-        if (!window.google || !window.google.maps) {
-          setMapError('Google Maps loading timeout. Using fallback map.');
-          setIsLoaded(false);
-        }
-      }, 10000);
-
-      script.onload = () => {
-        clearTimeout(timeout);
-      };
-
-      document.head.appendChild(script);
-
-      return () => {
-        clearTimeout(timeout);
-        // Cleanup
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
-      };
-    };
-
-    loadGoogleMaps();
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded && mapRef.current && !map && window.google) {
-      try {
-        initializeMap();
-      } catch (error) {
-        console.error('Error initializing map:', error);
-        setMapError('Failed to initialize map. Using fallback visualization.');
-      }
-    }
-  }, [isLoaded, map]);
-
-  const initializeMap = () => {
-    if (!window.google || !mapRef.current) return;
-
-    const mapInstance = new window.google.maps.Map(mapRef.current, {
-      center: { lat: 20.5937, lng: 78.9629 }, // Center of India
-      zoom: 5,
-      styles: [
-        {
-          featureType: 'water',
-          elementType: 'geometry',
-          stylers: [{ color: '#e9e9e9' }, { lightness: 17 }]
-        },
-        {
-          featureType: 'landscape',
-          elementType: 'geometry',
-          stylers: [{ color: '#f5f5f5' }, { lightness: 20 }]
-        }
-      ]
-    });
-
-    setMap(mapInstance);
-
-    // Add tourist markers
-    mockTourists.forEach((tourist) => {
-      const marker = new window.google.maps.Marker({
-        position: { lat: tourist.location.lat, lng: tourist.location.lng },
-        map: mapInstance,
-        title: tourist.name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: tourist.status === 'active' ? '#16a34a' : '#ef4444',
-          fillOpacity: 0.8,
-          strokeColor: '#ffffff',
-          strokeWeight: 2
-        }
-      });
-
-      marker.addListener('click', () => {
-        setSelectedTourists([tourist]);
-        setShowTouristList(true);
-      });
-    });
-
-    // Add incident markers
-    mockIncidents.forEach((incident) => {
-      const marker = new window.google.maps.Marker({
-        position: { lat: incident.location.lat, lng: incident.location.lng },
-        map: mapInstance,
-        title: `Incident: ${incident.description}`,
-        icon: {
-          path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-          scale: 6,
-          fillColor: getSeverityColor(incident.severity),
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2
-        }
-      });
-
-      const infoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div class="p-2">
-            <h3 class="font-semibold">${incident.touristName}</h3>
-            <p class="text-sm">${incident.description}</p>
-            <span class="text-xs text-gray-500">${incident.timestamp.toLocaleString()}</span>
-          </div>
-        `
-      });
-
-      marker.addListener('click', () => {
-        infoWindow.open(mapInstance, marker);
-      });
-    });
-
-    // Add heatmap if visualization library is available
-    if (window.google.maps.visualization) {
-      const heatmapData = mockTourists.map(tourist => 
-        new window.google.maps.LatLng(tourist.location.lat, tourist.location.lng)
-      );
-
-      const heatmap = new window.google.maps.visualization.HeatmapLayer({
-        data: heatmapData,
-        opacity: 0.6,
-        radius: 50
-      });
-
-      heatmap.setMap(mapInstance);
-    }
-  };
+  // Google Maps functions removed - using static Pune map
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -268,39 +212,21 @@ export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) 
         </CardHeader>
         <CardContent>
           <div className="relative">
-            {mapError ? (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
+            {/* Pune Tourist Map */}
+            <div className="space-y-4">
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                   <AlertDescription className="flex items-center justify-between">
-                    <span>{mapError}</span>
-                    <button 
-                      onClick={retryMapLoad}
-                      className="ml-2 flex items-center gap-1 text-sm text-primary hover:underline"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      Retry
-                    </button>
+                    <span className="text-emerald-800 font-medium">Pune Tourist Tracking Map</span>
+                    <span className="text-xs text-emerald-600">Real-time monitoring</span>
                   </AlertDescription>
-                </Alert>
-                {renderFallbackMap()}
-              </div>
-            ) : (
-              <>
-                <div 
-                  ref={mapRef} 
-                  className="w-full h-96 rounded-lg bg-muted"
-                />
-                {!isLoaded && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dashboard-accent mx-auto mb-2"></div>
-                      <p className="text-sm text-muted-foreground">Loading map...</p>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+                </div>
+              </Alert>
+              {renderPuneMap()}
+            </div>
+            
+            {/* Pune map is now the primary map */}
           </div>
           <div className="flex flex-wrap gap-4 mt-4">
             <div className="flex items-center gap-2">
