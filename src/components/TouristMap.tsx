@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Users, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MapPin, Users, AlertTriangle, RefreshCw } from 'lucide-react';
 import { mockTourists, mockIncidents, Tourist, Incident } from '@/lib/mockData';
-
-interface TouristMapProps {
-  selectedRegion?: string;
-  onRegionSelect?: (region: string) => void;
-}
 
 declare global {
   interface Window {
@@ -16,32 +12,140 @@ declare global {
   }
 }
 
+interface TouristMapProps {
+  selectedRegion?: string;
+  onRegionSelect?: (region: string) => void;
+}
+
 export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [selectedTourists, setSelectedTourists] = useState<Tourist[]>([]);
   const [showTouristList, setShowTouristList] = useState(false);
 
+  // Simple fallback map using a canvas-like approach
+  const renderFallbackMap = () => {
+    return (
+      <div className="w-full h-96 bg-gradient-to-br from-blue-100 to-green-100 rounded-lg relative overflow-hidden">
+        {/* India outline simulation */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative w-64 h-80 bg-primary/10 rounded-lg border-2 border-primary/20">
+            <div className="absolute top-4 left-4 text-xs text-primary font-medium">INDIA</div>
+            
+            {/* Tourist markers */}
+            {mockTourists.map((tourist, index) => (
+              <div
+                key={tourist.id}
+                className={`absolute w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-150 ${
+                  tourist.status === 'active' ? 'bg-success' : 'bg-destructive'
+                }`}
+                style={{
+                  left: `${20 + (index * 15) % 60}%`,
+                  top: `${20 + (index * 20) % 50}%`,
+                }}
+                title={`${tourist.name} - ${tourist.location.address}`}
+                onClick={() => {
+                  setSelectedTourists([tourist]);
+                  setShowTouristList(true);
+                }}
+              />
+            ))}
+            
+            {/* Incident markers */}
+            {mockIncidents.map((incident, index) => (
+              <div
+                key={incident.id}
+                className="absolute w-4 h-4 cursor-pointer"
+                style={{
+                  left: `${30 + (index * 20) % 40}%`,
+                  top: `${30 + (index * 15) % 40}%`,
+                }}
+                title={`Incident: ${incident.description}`}
+              >
+                <AlertTriangle 
+                  className={`w-4 h-4 ${
+                    incident.severity === 'high' ? 'text-destructive' :
+                    incident.severity === 'medium' ? 'text-warning' : 'text-success'
+                  }`}
+                />
+              </div>
+            ))}
+            
+            {/* Heatmap simulation */}
+            <div className="absolute inset-4 opacity-30">
+              <div className="w-8 h-8 bg-primary rounded-full absolute top-1/4 left-1/4 blur-sm"></div>
+              <div className="w-6 h-6 bg-accent rounded-full absolute top-1/2 left-1/2 blur-sm"></div>
+              <div className="w-10 h-10 bg-primary rounded-full absolute bottom-1/4 right-1/4 blur-sm"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
-    // Load Google Maps script
-    if (!window.google) {
+    const loadGoogleMaps = () => {
+      // Check if Google Maps is already loaded
+      if (window.google && window.google.maps) {
+        setIsLoaded(true);
+        return;
+      }
+
+      // Create script element
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAECt2XvC04i7IDJMybN7OtKllUjhxHYa4&libraries=visualization`;
+      const apiKey = 'AIzaSyAECt2XvC04i7IDJMybN7OtKllUjhxHYa4';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=visualization&callback=initMap`;
       script.async = true;
       script.defer = true;
-      script.onload = () => {
+
+      // Set up callback
+      window.initMap = () => {
         setIsLoaded(true);
+        setMapError(null);
       };
+
+      // Handle script load error
+      script.onerror = () => {
+        setMapError('Failed to load Google Maps. Please check your API key and network connection.');
+        setIsLoaded(false);
+      };
+
+      // Handle script load timeout
+      const timeout = setTimeout(() => {
+        if (!window.google || !window.google.maps) {
+          setMapError('Google Maps loading timeout. Using fallback map.');
+          setIsLoaded(false);
+        }
+      }, 10000);
+
+      script.onload = () => {
+        clearTimeout(timeout);
+      };
+
       document.head.appendChild(script);
-    } else {
-      setIsLoaded(true);
-    }
+
+      return () => {
+        clearTimeout(timeout);
+        // Cleanup
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      };
+    };
+
+    loadGoogleMaps();
   }, []);
 
   useEffect(() => {
-    if (isLoaded && mapRef.current && !map) {
-      initializeMap();
+    if (isLoaded && mapRef.current && !map && window.google) {
+      try {
+        initializeMap();
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        setMapError('Failed to initialize map. Using fallback visualization.');
+      }
     }
   }, [isLoaded, map]);
 
@@ -120,18 +224,20 @@ export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) 
       });
     });
 
-    // Add heatmap
-    const heatmapData = mockTourists.map(tourist => 
-      new window.google.maps.LatLng(tourist.location.lat, tourist.location.lng)
-    );
+    // Add heatmap if visualization library is available
+    if (window.google.maps.visualization) {
+      const heatmapData = mockTourists.map(tourist => 
+        new window.google.maps.LatLng(tourist.location.lat, tourist.location.lng)
+      );
 
-    const heatmap = new window.google.maps.visualization.HeatmapLayer({
-      data: heatmapData,
-      opacity: 0.6,
-      radius: 50
-    });
+      const heatmap = new window.google.maps.visualization.HeatmapLayer({
+        data: heatmapData,
+        opacity: 0.6,
+        radius: 50
+      });
 
-    heatmap.setMap(mapInstance);
+      heatmap.setMap(mapInstance);
+    }
   };
 
   const getSeverityColor = (severity: string) => {
@@ -141,6 +247,14 @@ export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) 
       case 'low': return '#22c55e';
       default: return '#6b7280';
     }
+  };
+
+  const retryMapLoad = () => {
+    setMapError(null);
+    setIsLoaded(false);
+    setMap(null);
+    // Trigger reload
+    window.location.reload();
   };
 
   return (
@@ -154,17 +268,38 @@ export function TouristMap({ selectedRegion, onRegionSelect }: TouristMapProps) 
         </CardHeader>
         <CardContent>
           <div className="relative">
-            <div 
-              ref={mapRef} 
-              className="w-full h-96 rounded-lg bg-muted"
-            />
-            {!isLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dashboard-accent mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading map...</p>
-                </div>
+            {mapError ? (
+              <div className="space-y-4">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{mapError}</span>
+                    <button 
+                      onClick={retryMapLoad}
+                      className="ml-2 flex items-center gap-1 text-sm text-primary hover:underline"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Retry
+                    </button>
+                  </AlertDescription>
+                </Alert>
+                {renderFallbackMap()}
               </div>
+            ) : (
+              <>
+                <div 
+                  ref={mapRef} 
+                  className="w-full h-96 rounded-lg bg-muted"
+                />
+                {!isLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dashboard-accent mx-auto mb-2"></div>
+                      <p className="text-sm text-muted-foreground">Loading map...</p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="flex flex-wrap gap-4 mt-4">
